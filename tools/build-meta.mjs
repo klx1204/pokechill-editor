@@ -122,9 +122,9 @@ for (const e of simple) {
   dsPkmn.set(norm(e.name_en), { zh: e.name_zh || null, en: e.name_en, no: Number(e.index) || null });
 }
 const dsMove = new Map();
-for (const e of moveList) if (e.name_en) dsMove.set(norm(e.name_en), e.name_zh || null);
+for (const e of moveList) if (e.name_en) dsMove.set(norm(e.name_en), e);
 const dsAbility = new Map();
-for (const e of abilityList) if (e.name_en) dsAbility.set(norm(e.name_en), e.name_zh || null);
+for (const e of abilityList) if (e.name_en) dsAbility.set(norm(e.name_en), e);
 
 const dsItems = new Map();
 (function walk(nodes) {
@@ -133,6 +133,26 @@ const dsItems = new Map();
     walk(n.children);
   }
 })(itemTree);
+
+// clean game ability text: ${tagXxx}, ${joinWithAnd(...)}, inline html
+const TAG_TEXT = {
+  Burn: "Burn", Poisoned: "Poisoned", Paralysis: "Paralyzed", Confused: "Confused",
+  Sleep: "Asleep", Freeze: "Frozen", Sunny: "Sunny", Rainy: "Rainy",
+  Sandstorm: "Sandstorm", Hail: "Hail", Foggy: "Foggy",
+  GrassyTerrain: "Grassy Terrain", ElectricTerrain: "Electric Terrain", MistyTerrain: "Misty Terrain",
+};
+const cleanText = (s) => {
+  if (!s) return null;
+  const out = String(s)
+    .replace(/\$\{tag(\w+)\}/g, (_, k) => TAG_TEXT[k] || k)
+    .replace(/\$\{joinWithAnd\([^}]*\)\}/g, "")
+    .replace(/<\/?span[^>]*>/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return out || null;
+};
 
 // ---------- form vocabulary ----------
 // pos: pre = 中文/英文形态词拼在前面, post = 括号放后面, enPost = 空格放后面
@@ -390,16 +410,18 @@ for (const p of pokemon) {
 // ---------- moves ----------
 const moveEntries = splitEntries(dictSrc, "move");
 const moveConsts = { t4Base: 120, demeritBp: 150 };
-const moves = moveEntries.map(({ id, body }) => {
+const movesFull = moveEntries.map(({ id, body }) => {
   const rarity = body.match(/rarity\s*:\s*(\d+)/);
   const type = body.match(/type\s*:\s*[`'"]([a-z]+)[`'"]/);
   const power = body.match(/power\s*:\s*([^,\n}]+)/);
   const split = body.match(/split\s*:\s*[`'"]([a-z]+)[`'"]/);
   const moveset = body.match(/moveset\s*:\s*\[([^\]]*)\]/);
+  const info = body.match(/info\s*:\s*function\s*\(\)\s*\{\s*return\s*`([^`]*)`/);
   const mv = camelWords(id);
+  const ds = dsMove.get(norm(mv));
   return {
     id,
-    nameZh: dsMove.get(norm(mv)) || null,
+    nameZh: ds?.name_zh || null,
     nameEn: mv,
     rarity: rarity ? Number(rarity[1]) : null,
     type: type ? type[1] : null,
@@ -407,23 +429,41 @@ const moves = moveEntries.map(({ id, body }) => {
     split: split ? split[1] : null,
     moveset: moveset ? [...moveset[1].matchAll(/[`'"]([\w]+)[`'"]/g)].map((x) => x[1]) : [],
     restricted: /^\s*restricted\s*:\s*true/m.test(body),
+    effectEn: info ? cleanText(info[1]) : null,
+    descZh: ds?.description || null,
+    accuracy: ds?.accuracy || null,
+    pp: ds?.pp || null,
+    officialCategory: ds?.category || null,
+    pokemon: [],
   };
 });
 
 // ---------- abilities ----------
 const abilityEntries = splitEntries(dictSrc, "ability");
-const abilities = abilityEntries.map(({ id, body }) => {
+const abilitiesFull = abilityEntries.map(({ id, body }) => {
   const rarity = body.match(/rarity\s*:\s*(\d+)/);
-  const mv = camelWords(id);
   const rename = body.match(/rename\s*:\s*[`'"]([^`'"]+)[`'"]/);
+  const mv = rename ? rename[1] : camelWords(id);
+  const ds = dsAbility.get(norm(mv));
+  const info = body.match(/info\s*:\s*function\s*\(\)\s*\{\s*return\s*`([^`]*)`/);
+  const nerf = body.match(/nerf\s*:\s*`([^`]*)`/);
+  const types = typeList(body);
   return {
     id,
-    nameZh: dsAbility.get(norm(mv)) || null,
-    nameEn: rename ? rename[1] : mv,
+    nameZh: ds?.name_zh || null,
+    nameEn: mv,
     rarity: rarity ? Number(rarity[1]) : null,
-    types: typeList(body),
+    types,
+    typeKind: types.includes("all") ? "all" : types.length ? "concrete" : "none",
+    effectEn: info ? cleanText(info[1]) : null,
+    nerf: nerf ? cleanText(nerf[1]) : null,
+    rename: rename ? rename[1] : null,
+    descZh: ds?.description || null,
+    pokemon: [],
   };
 });
+const abilities = abilitiesFull.map(({ effectEn, nerf, descZh, pokemon, typeKind, ...rest }) => rest);
+const moves = movesFull.map(({ effectEn, descZh, accuracy, pp, officialCategory, pokemon, ...rest }) => rest);
 
 // ---------- items ----------
 const itemEntries = splitEntries(itemSrc, "item");
@@ -455,6 +495,95 @@ const meta = {
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(meta));
+
+// ---------- wiki data ----------
+const wikiPokemon = uniq(pokemon, "id").map((p) => ({
+  id: p.id,
+  dexNo: p.dexNo,
+  gen: p.gen,
+  nameZh: p.nameZh,
+  nameEn: p.nameEn,
+  types: p.types,
+  division: p.division,
+  bst: p.bst,
+  hiddenAbility: p.hiddenAbility,
+  signature: p.signature,
+  eggMove: p.eggMove,
+  evolvesTo: p.evolvesTo,
+}));
+const wikiAbilities = uniq(abilitiesFull, "id");
+const wikiMoves = uniq(movesFull, "id");
+
+for (const a of wikiAbilities) {
+  a.pokemon = wikiPokemon.filter((p) => p.hiddenAbility === a.id).map((p) => p.id);
+}
+for (const m of wikiMoves) {
+  m.pokemon = [];
+  for (const p of wikiPokemon) {
+    if (p.signature === m.id) m.pokemon.push({ id: p.id, kind: "signature" });
+    if (p.eggMove === m.id) m.pokemon.push({ id: p.id, kind: "eggMove" });
+  }
+}
+
+// TM items: item.<moveId>Tm
+const tmByMove = new Map();
+for (const it of items) {
+  if (!it.id.endsWith("Tm") || it.id.length <= 2) continue;
+  const mv = it.id.slice(0, -2);
+  if (wikiMoves.some((m) => m.id === mv)) tmByMove.set(mv, it.id);
+}
+for (const m of wikiMoves) {
+  m.tm = tmByMove.has(m.id);
+  m.tmItem = tmByMove.get(m.id) || null;
+}
+
+const wikiMovesIndex = wikiMoves.map((m) => ({
+  id: m.id,
+  nameZh: m.nameZh,
+  nameEn: m.nameEn,
+  type: m.type,
+  rarity: m.rarity,
+  moveset: m.moveset,
+  tm: m.tm,
+}));
+const isSpecialId = (id) =>
+  /^(mega|gmax|primal|crystal|spiky|ultra)/i.test(id) || /(Clone|Gmax|Primal|Mega)$/i.test(id);
+const isFinalForm = (p) => !(p.evolvesTo || []).some((t) => !isSpecialId(t));
+const wikiPokemonIndex = wikiPokemon.map((p) => ({
+  id: p.id,
+  nameZh: p.nameZh,
+  nameEn: p.nameEn,
+  types: p.types,
+  dexNo: p.dexNo,
+  division: p.division,
+  final: isFinalForm(p),
+  special: isSpecialId(p.id),
+}));
+
+const wikiBase = { generatedAt: meta.generatedAt, types: TYPE_ZH };
+const wikiNames = {
+  pokemon: Object.fromEntries(wikiPokemon.map((p) => [p.id, [p.nameZh, p.nameEn]])),
+  moves: Object.fromEntries(wikiMoves.map((m) => [m.id, [m.nameZh, m.nameEn]])),
+  abilities: Object.fromEntries(wikiAbilities.map((a) => [a.id, [a.nameZh, a.nameEn]])),
+};
+fs.writeFileSync(path.join(ROOT, "data", "wiki-abilities.json"), JSON.stringify({ ...wikiBase, abilities: wikiAbilities }));
+fs.writeFileSync(path.join(ROOT, "data", "wiki-moves.json"), JSON.stringify({ ...wikiBase, moves: wikiMoves }));
+fs.writeFileSync(path.join(ROOT, "data", "wiki-pokemon.json"), JSON.stringify({ ...wikiBase, pokemon: wikiPokemon }));
+fs.writeFileSync(path.join(ROOT, "data", "wiki-names.json"), JSON.stringify(wikiNames));
+fs.writeFileSync(path.join(ROOT, "data", "wiki-moves-index.json"), JSON.stringify(wikiMovesIndex));
+fs.writeFileSync(path.join(ROOT, "data", "wiki-pokemon-index.json"), JSON.stringify(wikiPokemonIndex));
+
+const wikiStat = {
+  abilities: wikiAbilities.length,
+  abilityZh: wikiAbilities.filter((a) => a.nameZh).length,
+  abilityDescZh: wikiAbilities.filter((a) => a.descZh).length,
+  moves: wikiMoves.length,
+  movesZh: wikiMoves.filter((m) => m.nameZh).length,
+  movesDescZh: wikiMoves.filter((m) => m.descZh).length,
+  tmMoves: wikiMoves.filter((m) => m.tm).length,
+  pokemon: wikiPokemon.length,
+};
+console.log("wiki data:", wikiStat);
 
 const stat = {
   pokemon: meta.pokemon.length,

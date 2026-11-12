@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>宝可梦 · Pokechill Wiki</title>
+<link rel="stylesheet" href="wiki.css">
+</head>
+<body data-page="pokemon">
+
+<header class="topbar">
+  <div class="topline">
+    <div class="brand"><span class="brand-mark">◈</span> Pokechill Wiki</div>
+    <nav class="wiki-nav">
+      <a href="abilities.html">特性</a>
+      <a href="moves.html">招式</a>
+      <a href="pokemon.html" class="active">宝可梦</a>
+      <a href="../index.html" class="back">修改器</a>
+      <button id="btnTheme" title="切换主题" aria-label="切换主题">☾</button>
+    </nav>
+  </div>
+  <div class="statusbar">
+    <span id="status">加载中…</span>
+    <span class="count" id="count"></span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="filters">
+    <input class="input search" id="search" placeholder="搜索宝可梦：中文 / 英文 / 编号" autocomplete="off">
+    <select class="select" id="fType"></select>
+    <select class="select" id="fType2"></select>
+    <select class="select" id="fGen"></select>
+    <select class="select" id="fDivision"></select>
+    <select class="select" id="fSort">
+      <option value="default">图鉴编号</option>
+      <option value="name">名称</option>
+      <option value="division">分级</option>
+    </select>
+    <button class="btn ghost" id="btnClear">清除筛选</button>
+  </section>
+
+  <div class="list" id="list"></div>
+
+  <div class="pager">
+    <button class="btn small" id="prevPage">上一页</button>
+    <span id="pageInfo"></span>
+    <button class="btn small" id="nextPage">下一页</button>
+  </div>
+
+  <aside class="detail" id="detail">
+    <div class="empty"><div class="icon">◈</div><p>选择一项查看详情</p><p class="muted">点击左侧列表中的宝可梦</p></div>
+  </aside>
+</main>
+
+<script src="wiki.js"></script>
+</body>
+</html>

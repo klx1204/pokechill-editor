@@ -330,6 +330,30 @@ function abilityFits(abilityId, p) {
   return a.types.some((t) => p.types.includes(t));
 }
 
+function learnableOptions(p) {
+  const out = [];
+  for (const m of M.moveList) {
+    let kind = null;
+    if (p.signature === m.id) kind = "专属";
+    else if (p.eggMove === m.id) kind = "蛋招";
+    else {
+      const ms = m.moveset;
+      if (ms && ms.length && (ms.includes("all") || ms.some((t) => p.types.includes(t)))) {
+        kind = M.items.has(m.id + "Tm") ? "普通 / TM" : "普通";
+      }
+    }
+    if (!kind) continue;
+    out.push({
+      value: m.id,
+      zh: m.nameZh,
+      en: m.nameEn,
+      extra: `${kind} · ${typeZh(m.type)}${m.power != null ? " · 威力 " + m.power : ""}`,
+      fits: true,
+    });
+  }
+  return out;
+}
+
 function validateSave(data) {
   const errors = [];
   const warnings = [];
@@ -425,12 +449,12 @@ function validateSave(data) {
 
 function renderFilters() {
   const typeOptions =
-    `<option value="all">属性</option>` +
+    `<option value="all">全部属性</option>` +
     Object.entries(M.types || {})
       .map(([k, zh]) => `<option value="${k}">${zh} / ${k}</option>`)
       .join("");
   $("#fType").innerHTML = typeOptions;
-  $("#fType2").innerHTML = typeOptions.replace(">属性<", ">属性 2<");
+  $("#fType2").innerHTML = typeOptions;
 }
 
 function renderGenbar() {
@@ -782,9 +806,21 @@ function renderDetail(id) {
     </div>
 
     <div class="section">
-      <h4>招式池（${movepool.length}）</h4>
+      <h4>招式池（${movepool.length}）${movepool.length > 20 ? `<span class="warn"> · 超过 20，Move Training 不可用</span>` : ""}</h4>
       <div class="movepool" id="movepool">
-        ${movepool.length ? movepool.map((m) => `<span class="chip" data-move="${m}">${esc(M.moves.get(m)?.nameZh || M.moves.get(m)?.nameEn || m)}</span>`).join("") : `<span class="muted">空</span>`}
+        ${movepool.length
+          ? movepool
+              .map(
+                (m) => `<span class="chip move-chip" data-move="${m}">${esc(
+                  M.moves.get(m)?.nameZh || M.moves.get(m)?.nameEn || m
+                )}<button class="chip-remove" data-remove="${m}" title="从招式池移除">×</button></span>`
+              )
+              .join("")
+          : `<span class="muted">空</span>`}
+      </div>
+      <div class="field span2" style="margin-top:.55rem">
+        <label>添加可学招式</label>
+        <div class="combo" data-combo="learnable" data-slot="movepool"></div>
       </div>
     </div>
 
@@ -983,6 +1019,48 @@ function bindDetail(p, e) {
     }
     toast("4 个招式槽已满");
   };
+
+  // remove a move from the pool; unequip it if needed
+  for (const btn of $$("[data-remove]", body)) {
+    btn.onclick = (ev) => {
+      ev.stopPropagation();
+      const mv = btn.dataset.remove;
+      e.movepool = (e.movepool || []).filter((x) => x !== mv);
+      if (e.moves) {
+        for (const slot of ["slot1", "slot2", "slot3", "slot4"]) {
+          if (e.moves[slot] === mv) e.moves[slot] = null;
+        }
+      }
+      commit();
+      renderDetail(p.id);
+      refreshList();
+      toast("已从招式池移除");
+    };
+  }
+
+  // add a learnable move to the pool
+  const learnCombo = $('[data-combo="learnable"]', body);
+  if (learnCombo) {
+    makeCombo(learnCombo, {
+      value: "",
+      placeholder: "搜索可学招式（中文 / 英文）",
+      options: learnableOptions(p),
+      allowEmpty: false,
+      onChange: (v) => {
+        if (!v) return;
+        if (!Array.isArray(e.movepool)) e.movepool = [];
+        if (e.movepool.includes(v)) {
+          toast("招式池里已经有这个招式了");
+          return;
+        }
+        e.movepool.push(v);
+        commit();
+        renderDetail(p.id);
+        refreshList();
+        toast("已加入招式池");
+      },
+    });
+  }
 }
 
 /* ================= combobox ================= */
@@ -1513,6 +1591,18 @@ function bindGlobal() {
     renderItems();
     toast("瓶盖数量已更新");
   };
+
+  const setCap9999 = (id, label) => {
+    if (!state.raw) return;
+    if (!state.raw[id]) state.raw[id] = { got: 0, newItem: 0 };
+    state.raw[id].got = 9999;
+    commit();
+    renderBottles();
+    renderItems();
+    toast(`${label}已设为 9999`);
+  };
+  $("#btnBottleCap9999").onclick = () => setCap9999("bottleCap", "银色瓶盖");
+  $("#btnGoldenBottleCap9999").onclick = () => setCap9999("goldenBottleCap", "金色瓶盖");
 
   // keyboard
   document.addEventListener("keydown", (ev) => {

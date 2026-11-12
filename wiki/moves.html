@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>招式 · Pokechill Wiki</title>
+<link rel="stylesheet" href="wiki.css">
+</head>
+<body data-page="moves">
+
+<header class="topbar">
+  <div class="topline">
+    <div class="brand"><span class="brand-mark">◈</span> Pokechill Wiki</div>
+    <nav class="wiki-nav">
+      <a href="abilities.html">特性</a>
+      <a href="moves.html" class="active">招式</a>
+      <a href="pokemon.html">宝可梦</a>
+      <a href="../index.html" class="back">修改器</a>
+      <button id="btnTheme" title="切换主题" aria-label="切换主题">☾</button>
+    </nav>
+  </div>
+  <div class="statusbar">
+    <span id="status">加载中…</span>
+    <span class="count" id="count"></span>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="filters">
+    <input class="input search" id="search" placeholder="搜索招式：中文 / 英文 / id" autocomplete="off">
+    <select class="select" id="fRarity"></select>
+    <select class="select" id="fType"></select>
+    <select class="select" id="fSplit">
+      <option value="all">全部分类</option>
+      <option value="physical">物理</option>
+      <option value="special">特殊</option>
+      <option value="status">变化</option>
+    </select>
+    <select class="select" id="fSort">
+      <option value="default">名称</option>
+      <option value="power">威力（高→低）</option>
+      <option value="rarity">稀有度（高→低）</option>
+    </select>
+    <button class="btn ghost" id="btnClear">清除筛选</button>
+  </section>
+
+  <div class="list" id="list"></div>
+
+  <div class="pager">
+    <button class="btn small" id="prevPage">上一页</button>
+    <span id="pageInfo"></span>
+    <button class="btn small" id="nextPage">下一页</button>
+  </div>
+
+  <aside class="detail" id="detail">
+    <div class="empty"><div class="icon">◈</div><p>选择一项查看详情</p><p class="muted">点击左侧列表中的招式</p></div>
+  </aside>
+</main>
+
+<script src="wiki.js"></script>
+</body>
+</html>
