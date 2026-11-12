@@ -19,6 +19,8 @@
     <button class="btn" id="btnExport" disabled>导出 JSON</button>
     <button class="btn ghost" id="btnCopy" disabled>复制文本</button>
     <button class="btn ghost" id="btnRestore" disabled>还原</button>
+    <button class="btn icon" id="btnUndo" disabled title="撤销 (Ctrl+Z)" aria-label="撤销">↶</button>
+    <button class="btn icon" id="btnRedo" disabled title="重做 (Ctrl+Y)" aria-label="重做">↷</button>
     <button class="btn icon" id="btnTheme" title="切换主题" aria-label="切换主题">☾</button>
   </div>
   <input type="file" id="fileInput" accept=".json,application/json" hidden>
@@ -149,6 +151,7 @@
       </div>
     </div>
     <div class="bottle-cards" id="bottleCards"></div>
+    <div class="item-head"><span>道具</span><span>got</span><span>newItem</span></div>
     <div class="item-list" id="itemList"></div>
   </section>
 

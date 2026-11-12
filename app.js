@@ -186,6 +186,11 @@ function setDirty(v) {
   $("#dirty").hidden = !v;
 }
 
+function updateHistoryButtons() {
+  $("#btnUndo").disabled = state.historyIndex <= 0;
+  $("#btnRedo").disabled = state.historyIndex >= state.history.length - 1;
+}
+
 /* ================= theme ================= */
 
 function initTheme() {
@@ -210,6 +215,7 @@ function commit() {
   if (state.history.length > 30) state.history.shift();
   state.historyIndex = state.history.length - 1;
   setDirty(true);
+  updateHistoryButtons();
 }
 
 function undo() {
@@ -217,6 +223,7 @@ function undo() {
   state.historyIndex--;
   state.raw = structuredClone(state.history[state.historyIndex]);
   setDirty(true);
+  updateHistoryButtons();
   refresh();
   renderDetail(state.selected);
   toast("已撤销");
@@ -227,6 +234,7 @@ function redo() {
   state.historyIndex++;
   state.raw = structuredClone(state.history[state.historyIndex]);
   setDirty(true);
+  updateHistoryButtons();
   refresh();
   renderDetail(state.selected);
   toast("已重做");
@@ -287,6 +295,7 @@ function importText(text) {
   $("#btnExport").disabled = false;
   $("#btnCopy").disabled = false;
   $("#btnRestore").disabled = false;
+  updateHistoryButtons();
 
   renderBottles();
   renderItems();
@@ -734,7 +743,7 @@ function renderDetail(id) {
       </div>
       <div class="field">
         <label>经验（0–99）</label>
-        <input class="input" type="number" min="0" max="99" step="1" id="fldExp" value="${e.exp ?? 0}" inputmode="numeric">
+        <input class="input" type="number" min="0" max="99" step="0.5" id="fldExp" value="${e.exp ?? 0}" inputmode="decimal">
       </div>
       <div class="field">
         <label>性格</label>
@@ -824,12 +833,12 @@ function bindDetail(p, e) {
 
   $("#detailBack", body).onclick = () => closeDetailOverlay();
 
-  const setNum = (sel, key, min, max) => {
+  const setNum = (sel, key, min, max, round = true) => {
     const el = $(sel, body);
     el.onchange = () => {
       let v = Number(el.value);
       if (!Number.isFinite(v)) v = min;
-      v = Math.round(v);
+      v = round ? Math.round(v) : Math.round(v * 10) / 10;
       v = Math.max(min, Math.min(max, v));
       el.value = v;
       e[key] = v;
@@ -838,7 +847,7 @@ function bindDetail(p, e) {
     };
   };
   setNum("#fldLevel", "level", 1, 100);
-  setNum("#fldExp", "exp", 0, 99);
+  setNum("#fldExp", "exp", 0, 99, false);
   setNum("#fldCaught", "caught", 0, 999999);
 
   $("#fldNickname", body).onchange = (ev) => {
@@ -1289,6 +1298,7 @@ function restoreOriginal() {
         state.history = [structuredClone(state.original)];
         state.historyIndex = 0;
         setDirty(false);
+        updateHistoryButtons();
         state.tags = [];
         refresh();
         renderDetail(state.selected);
@@ -1331,6 +1341,9 @@ function bindGlobal() {
   $("#btnExport").onclick = exportJSON;
   $("#btnCopy").onclick = copyText;
   $("#btnRestore").onclick = restoreOriginal;
+  $("#btnUndo").onclick = undo;
+  $("#btnRedo").onclick = redo;
+  updateHistoryButtons();
 
   // tabs
   $$(".tab").forEach((tab) => {
