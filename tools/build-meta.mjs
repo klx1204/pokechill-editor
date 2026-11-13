@@ -417,7 +417,8 @@ const movesFull = moveEntries.map(({ id, body }) => {
   const split = body.match(/split\s*:\s*[`'"]([a-z]+)[`'"]/);
   const moveset = body.match(/moveset\s*:\s*\[([^\]]*)\]/);
   const info = body.match(/info\s*:\s*function\s*\(\)\s*\{\s*return\s*`([^`]*)`/);
-  const mv = camelWords(id);
+  const rename = body.match(/rename\s*:\s*[`'"]([^`'"]+)[`'"]/);
+  const mv = rename ? camelWords(rename[1]) : camelWords(id);
   const ds = dsMove.get(norm(mv));
   return {
     id,
@@ -439,7 +440,11 @@ const movesFull = moveEntries.map(({ id, body }) => {
 });
 
 // ---------- abilities ----------
-const abilityEntries = splitEntries(dictSrc, "ability");
+const abilitySrc = dictSrc.slice(
+  dictSrc.indexOf("const ability = {}"),
+  dictSrc.indexOf("const move = {}")
+);
+const abilityEntries = splitEntries(abilitySrc, "ability");
 const abilitiesFull = abilityEntries.map(({ id, body }) => {
   const rarity = body.match(/rarity\s*:\s*(\d+)/);
   const rename = body.match(/rename\s*:\s*[`'"]([^`'"]+)[`'"]/);
@@ -467,8 +472,35 @@ const moves = movesFull.map(({ effectEn, descZh, accuracy, pp, officialCategory,
 
 // ---------- items ----------
 const itemEntries = splitEntries(itemSrc, "item");
+const moveById = new Map(movesFull.map((m) => [m.id, m]));
+const abilityById = new Map(abilitiesFull.map((a) => [a.id, a]));
 const items = itemEntries.map(({ id, body }) => {
   const type = body.match(/type\s*:\s*[`'"]([a-z]+)[`'"]/);
+  // TM items: item.<moveId>Tm
+  if (id.endsWith("Tm") && id.length > 2) {
+    const mv = moveById.get(id.slice(0, -2));
+    if (mv) {
+      return {
+        id,
+        nameZh: mv.nameZh ? `${mv.nameZh} TM` : null,
+        nameEn: `${mv.nameEn} TM`,
+        type: "tm",
+      };
+    }
+  }
+  // Ability memory items: item.<abilityId>Memory
+  if (id.endsWith("Memory") && id.length > 6) {
+    const ab = abilityById.get(id.slice(0, -6));
+    if (ab) {
+      const en = ab.nameEn ? ab.nameEn.charAt(0).toUpperCase() + ab.nameEn.slice(1) : ab.id;
+      return {
+        id,
+        nameZh: ab.nameZh ? `${ab.nameZh}记忆` : null,
+        nameEn: `${en} Memory`,
+        type: "memory",
+      };
+    }
+  }
   const mv = camelWords(id);
   return {
     id,
