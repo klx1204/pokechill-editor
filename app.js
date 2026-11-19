@@ -71,13 +71,13 @@ const natureEffectText = (id) => {
   const n = NATURES.find((x) => x.id === id);
   if (!n) return "不改变属性";
   return Object.entries(n.effect)
-    .map(([stat, v]) => `${STAT_NAMES[stat]}${v > 0 ? " ↑" : " ↓"}`)
-    .join(" / ");
+    .map(([stat, v]) => `${STAT_NAMES[stat]}${v > 0 ? "↑" : "↓"}`)
+    .join(" ");
 };
 const natureSelect = (id) =>
   NATURES.map(
     (n) =>
-      `<option value="${n.id}" ${n.id === id ? "selected" : ""}>${n.zh} / ${n.en}（${natureEffectText(n.id)}）</option>`,
+      `<option value="${n.id}" ${n.id === id ? "selected" : ""}>${n.zh} / ${n.en} · ${natureEffectText(n.id)}</option>`,
   ).join("");
 
 const fmtNum = (n) => (typeof n === "number" ? String(n) : "0");
