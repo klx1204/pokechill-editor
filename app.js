@@ -7,13 +7,15 @@
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 
+const STAT_NAMES = { hp: "HP", atk: "攻击", def: "防御", satk: "特攻", sdef: "特防", spe: "速度" };
+
 const NATURES = [
-  { id: "adamant", zh: "固执", en: "Adamant" },
-  { id: "modest", zh: "内敛", en: "Modest" },
-  { id: "jolly", zh: "爽朗", en: "Jolly" },
-  { id: "relaxed", zh: "悠闲", en: "Relaxed" },
-  { id: "quiet", zh: "冷静", en: "Quiet" },
-  { id: "bold", zh: "大胆", en: "Bold" },
+  { id: "adamant", zh: "固执", en: "Adamant", effect: { atk: 1, satk: -1 } },
+  { id: "modest", zh: "内敛", en: "Modest", effect: { satk: 1, atk: -1 } },
+  { id: "jolly", zh: "爽朗", en: "Jolly", effect: { spe: 1, def: -1, sdef: -1 } },
+  { id: "relaxed", zh: "悠闲", en: "Relaxed", effect: { hp: 1, spe: -1 } },
+  { id: "quiet", zh: "冷静", en: "Quiet", effect: { hp: 1, atk: -1, satk: -1 } },
+  { id: "bold", zh: "大胆", en: "Bold", effect: { def: 1, sdef: 1, hp: -1 } },
 ];
 
 const state = {
@@ -65,8 +67,18 @@ const norm = (s) =>
 
 const typeZh = (t) => M.types[t] || t || "";
 const natureZh = (id) => NATURES.find((n) => n.id === id)?.zh || id || "无";
+const natureEffectText = (id) => {
+  const n = NATURES.find((x) => x.id === id);
+  if (!n) return "不改变属性";
+  return Object.entries(n.effect)
+    .map(([stat, v]) => `${STAT_NAMES[stat]}${v > 0 ? " ↑" : " ↓"}`)
+    .join(" / ");
+};
 const natureSelect = (id) =>
-  NATURES.map((n) => `<option value="${n.id}" ${n.id === id ? "selected" : ""}>${n.zh} / ${n.en}</option>`).join("");
+  NATURES.map(
+    (n) =>
+      `<option value="${n.id}" ${n.id === id ? "selected" : ""}>${n.zh} / ${n.en}（${natureEffectText(n.id)}）</option>`,
+  ).join("");
 
 const fmtNum = (n) => (typeof n === "number" ? String(n) : "0");
 const esc = (s) =>
@@ -772,9 +784,12 @@ function renderDetail(id) {
       <div class="field">
         <label>性格</label>
         <select class="select" id="fldNature">
-          <option value="">无</option>
+          <option value="">无（不改变属性）</option>
           ${natureSelect(e.nature)}
         </select>
+        <div class="field-hint" id="fldNatureHint">${
+          e.nature ? `属性影响：${natureEffectText(e.nature)}` : "不改变属性星级"
+        }</div>
       </div>
       <div class="field">
         <label>捕获数量 / caught</label>
@@ -901,6 +916,11 @@ function bindDetail(p, e) {
   $("#fldNature", body).onchange = (ev) => {
     if (ev.target.value) e.nature = ev.target.value;
     else delete e.nature;
+    const hint = $("#fldNatureHint", body);
+    if (hint)
+      hint.textContent = ev.target.value
+        ? `属性影响：${natureEffectText(ev.target.value)}`
+        : "不改变属性星级";
     commit();
   };
 
