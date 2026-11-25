@@ -1417,10 +1417,10 @@ function quickAction(fn, label) {
       label: "执行",
       primary: true,
       onClick: () => {
-        fn();
+        const result = fn();
         commit();
         refresh();
-        toast("完成");
+        toast(typeof result === "string" ? result : "完成");
         return false;
       },
     },
@@ -1587,6 +1587,33 @@ function bindGlobal() {
         if (isPkmnEntry(id, v) && v.caught > 0 && p?.hiddenAbility) v.hiddenAbilityUnlocked = true;
       }
     }, "解锁全部隐藏特性");
+
+  $("#btnAddAllEggMoves").onclick = () =>
+    quickAction(() => {
+      let added = 0;
+      let already = 0;
+      let skipped = 0;
+      let over20 = 0;
+      for (const [id, v] of Object.entries(state.raw)) {
+        if (!isPkmnEntry(id, v) || v.caught <= 0) continue;
+        const p = M.pokemon.get(id);
+        if (!p?.eggMove) {
+          skipped++;
+          continue;
+        }
+        if (!Array.isArray(v.movepool)) v.movepool = [];
+        if (v.movepool.includes(p.eggMove)) {
+          already++;
+          continue;
+        }
+        v.movepool.push(p.eggMove);
+        added++;
+        if (v.movepool.length > 20) over20++;
+      }
+      const tail = already ? `，${already} 只已有` : "";
+      const warn = over20 ? `，${over20} 只超过 20 招（Move Training 不可用）` : "";
+      return `已为 ${added} 只宝可梦添加蛋招式${tail}${skipped ? `，${skipped} 只无蛋招式` : ""}${warn}`;
+    }, "添加全部蛋招式");
 
   $("#btnMaxItems").onclick = () =>
     quickAction(() => {
